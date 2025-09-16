@@ -8,16 +8,52 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$scriptRoot = Split-Path -Parent $PSCommandPath
+$scriptRootCandidates = @()
+if ($PSScriptRoot) {
+    $scriptRootCandidates += $PSScriptRoot
+}
+if ($PSCommandPath) {
+    $scriptRootCandidates += (Split-Path -Parent $PSCommandPath)
+}
+
+$processPath = $null
+try {
+    $processPath = Split-Path -Parent ([System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)
+} catch { }
+if ($processPath) {
+    $scriptRootCandidates += $processPath
+}
+
+$scriptRoot = $null
+foreach ($candidate in ($scriptRootCandidates + (Get-Location).Path | Select-Object -Unique)) {
+    if (-not $candidate) { continue }
+    $candidateFull = [System.IO.Path]::GetFullPath($candidate)
+    if (Test-Path (Join-Path $candidateFull 'src')) {
+        $scriptRoot = $candidateFull
+        break
+    }
+    $parent = Split-Path -Parent $candidateFull
+    if ($parent -and (Test-Path (Join-Path $parent 'src'))) {
+        $scriptRoot = $parent
+        break
+    }
+}
+
+if (-not $scriptRoot) {
+    $scriptRoot = [System.IO.Path]::GetFullPath((Get-Location).Path)
+}
+
 $srcPath = Join-Path $scriptRoot 'src'
 
-# Ensure UTF-8 regardless of locale
-if ($PSVersionTable.PSVersion.Major -ge 6) {
-    $encoding = [System.Text.UTF8Encoding]::new($false)
-    if (-not [System.Console]::OutputEncoding.WebName.Equals($encoding.WebName)) {
-        [System.Console]::OutputEncoding = $encoding
-        [System.Console]::InputEncoding = $encoding
-    }
+# Ensure UTF-8 regardless of host
+$utf8Encoding = [System.Text.UTF8Encoding]::new($false)
+$encodingSet = $false
+try {
+    [System.Console]::OutputEncoding = $utf8Encoding
+    [System.Console]::InputEncoding = $utf8Encoding
+    $encodingSet = $true
+} catch {
+    $encodingSet = $false
 }
 
 $modules = 'Board','Gen','Render','Input','Game'
@@ -33,9 +69,14 @@ if (-not $PSBoundParameters.ContainsKey('Seed')) {
     $Seed = [System.Random]::new().Next()
 }
 
+$useCompat = [bool]$Compat
+if (-not $encodingSet) {
+    $useCompat = $true
+}
+
 $gameOptions = [ordered]@{
     Seed   = $Seed
-    Compat = [bool]$Compat
+    Compat = $useCompat
 }
 
 if ($Headless) {

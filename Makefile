@@ -10,7 +10,7 @@ WIN_OUTPUT := $(shell wslpath -w $(WSL_REPO)/$(EXE))
 WIN_PACKAGE_SCRIPT := $(shell wslpath -w $(WSL_REPO)/scripts/package.ps1)
 WIN_RUN_WINDOW_SCRIPT := $(shell wslpath -w $(WSL_REPO)/scripts/run-window.ps1)
 
-.PHONY: all run run-window test package clean setup-wsl setup-win
+.PHONY: all run run-window test package debug clean setup-wsl setup-win
 
 all: run
 
@@ -38,6 +38,11 @@ run-window: setup-wsl setup-win
 # Deterministic smoke test for CI
 test: setup-wsl
 	@$(WSL_PWSH) -NoLogo -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-headless.ps1
+
+DEBUG_SEED := $(if $(SEED),$(SEED),123)
+
+debug: setup-wsl
+	@$(WSL_PWSH) -NoLogo -NoProfile -ExecutionPolicy Bypass -File ./scripts/debug-board.ps1 -Seed $(DEBUG_SEED) -ShowMonsters
 
 package: $(EXE)
 
