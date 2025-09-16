@@ -3,9 +3,17 @@ $ErrorActionPreference = 'Stop'
 
 function Read-DungeonInput {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()] [switch] $NonBlocking
+    )
 
-    return $null
+    if ($NonBlocking) {
+        if (-not [System.Console]::KeyAvailable) {
+            return $null
+        }
+    }
+
+    return [System.Console]::ReadKey($true)
 }
 
 Export-ModuleMember -Function Read-DungeonInput

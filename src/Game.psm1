@@ -23,7 +23,124 @@ function New-DungeonSweeperState {
         Board      = $board
         Cursor     = $cursor
         Status     = 'Playing'
-        LastAction = $null
+        LastAction = 'Explore the dungeon. Press Space to reveal.'
+    }
+}
+
+function Get-DungeonAction {
+    param([Parameter(Mandatory)] [System.ConsoleKeyInfo] $KeyInfo)
+
+    if ($KeyInfo.Key -eq [System.ConsoleKey]::C -and ($KeyInfo.Modifiers -band [System.ConsoleModifiers]::Control)) {
+        return [pscustomobject]@{ Type = 'Quit' }
+    }
+
+    switch ($KeyInfo.Key) {
+        ([System.ConsoleKey]::LeftArrow) { return [pscustomobject]@{ Type = 'Move'; Dx = -1; Dy = 0 } }
+        ([System.ConsoleKey]::RightArrow) { return [pscustomobject]@{ Type = 'Move'; Dx = 1; Dy = 0 } }
+        ([System.ConsoleKey]::UpArrow) { return [pscustomobject]@{ Type = 'Move'; Dx = 0; Dy = -1 } }
+        ([System.ConsoleKey]::DownArrow) { return [pscustomobject]@{ Type = 'Move'; Dx = 0; Dy = 1 } }
+        ([System.ConsoleKey]::A) { return [pscustomobject]@{ Type = 'Move'; Dx = -1; Dy = 0 } }
+        ([System.ConsoleKey]::D) { return [pscustomobject]@{ Type = 'Move'; Dx = 1; Dy = 0 } }
+        ([System.ConsoleKey]::W) { return [pscustomobject]@{ Type = 'Move'; Dx = 0; Dy = -1 } }
+        ([System.ConsoleKey]::S) { return [pscustomobject]@{ Type = 'Move'; Dx = 0; Dy = 1 } }
+        ([System.ConsoleKey]::H) { return [pscustomobject]@{ Type = 'Move'; Dx = -1; Dy = 0 } }
+        ([System.ConsoleKey]::L) { return [pscustomobject]@{ Type = 'Move'; Dx = 1; Dy = 0 } }
+        ([System.ConsoleKey]::K) { return [pscustomobject]@{ Type = 'Move'; Dx = 0; Dy = -1 } }
+        ([System.ConsoleKey]::J) { return [pscustomobject]@{ Type = 'Move'; Dx = 0; Dy = 1 } }
+        ([System.ConsoleKey]::Spacebar) { return [pscustomobject]@{ Type = 'Reveal' } }
+        ([System.ConsoleKey]::Enter) { return [pscustomobject]@{ Type = 'Reveal' } }
+        ([System.ConsoleKey]::F) { return [pscustomobject]@{ Type = 'Flag' } }
+        ([System.ConsoleKey]::Q) { return [pscustomobject]@{ Type = 'Quit' } }
+        ([System.ConsoleKey]::Escape) { return [pscustomobject]@{ Type = 'Quit' } }
+        Default { return $null }
+    }
+}
+
+function Move-DungeonCursor {
+    param(
+        [Parameter(Mandatory)] $State,
+        [Parameter(Mandatory)] [int] $Dx,
+        [Parameter(Mandatory)] [int] $Dy
+    )
+
+    $board = $State.Board
+    $newX = [Math]::Max([Math]::Min($State.Cursor.X + $Dx, $board.Width - 1), 0)
+    $newY = [Math]::Max([Math]::Min($State.Cursor.Y + $Dy, $board.Height - 1), 0)
+
+    if ($newX -eq $State.Cursor.X -and $newY -eq $State.Cursor.Y) {
+        $State.LastAction = 'Reached the edge of the map.'
+        return
+    }
+
+    $State.Cursor.X = $newX
+    $State.Cursor.Y = $newY
+    $State.LastAction = "Cursor moved to ({0},{1})." -f ($newX + 1), ($newY + 1)
+}
+
+function Reveal-AllMonsters {
+    param([Parameter(Mandatory)] $Board)
+
+    for ($i = 0; $i -lt $Board.Monsters.Length; $i++) {
+        if ($Board.Monsters[$i]) {
+            $Board.Revealed[$i] = $true
+        }
+    }
+}
+
+function Resolve-DungeonReveal {
+    param([Parameter(Mandatory)] $State)
+
+    $board = $State.Board
+    $index = ConvertTo-DungeonIndex -Width $board.Width -Height $board.Height -X $State.Cursor.X -Y $State.Cursor.Y
+
+    if ($board.Flags[$index]) {
+        $State.LastAction = 'Remove the flag before revealing.'
+        return
+    }
+
+    if ($board.Revealed[$index]) {
+        $State.LastAction = 'Already revealed.'
+        return
+    }
+
+    $result = Reveal-DungeonCell -Board $board -Index $index
+    if ($result.HitMonster) {
+        $State.Status = 'Lost'
+        $State.LastAction = 'A monster awakens!'
+        Reveal-AllMonsters -Board $board
+        return
+    }
+
+    if ($result.RevealedIndexes.Count -le 0) {
+        $State.LastAction = 'No new rooms cleared.'
+    } elseif ($result.RevealedIndexes.Count -eq 1) {
+        $State.LastAction = 'Cleared 1 room.'
+    } else {
+        $State.LastAction = "Cleared {0} rooms." -f $result.RevealedIndexes.Count
+    }
+
+    if ($result.IsComplete) {
+        $State.Status = 'Won'
+        $State.LastAction = 'All safe rooms cleared!'
+    }
+}
+
+function Resolve-DungeonFlag {
+    param([Parameter(Mandatory)] $State)
+
+    $board = $State.Board
+    $index = ConvertTo-DungeonIndex -Width $board.Width -Height $board.Height -X $State.Cursor.X -Y $State.Cursor.Y
+
+    if ($board.Revealed[$index]) {
+        $State.LastAction = 'Cannot flag a revealed room.'
+        return
+    }
+
+    $result = Toggle-DungeonFlag -Board $board -Index $index
+    if ($result.IsFlagged) {
+        $State.LastAction = 'Flag placed.'
+    } else {
+        $State.LastAction = 'Flag removed.'
     }
 }
 
@@ -34,7 +151,34 @@ function Invoke-DungeonSweeperGame {
         [Parameter(Mandatory)] [bool] $Compat
     )
 
-    throw 'Interactive game loop not yet implemented.'
+    $state = New-DungeonSweeperState -Seed $Seed -Compat $Compat
+    $renderer = New-DungeonRenderer -Width $state.Board.Width -Height $state.Board.Height -Compat $Compat
+
+    while ($true) {
+        Write-DungeonFrame -Renderer $renderer -State $state
+
+        if ($state.Status -ne 'Playing') {
+            break
+        }
+
+        $keyInfo = Read-DungeonInput
+        if ($null -eq $keyInfo) { continue }
+
+        $action = Get-DungeonAction -KeyInfo $keyInfo
+        if ($null -eq $action) {
+            continue
+        }
+
+        switch ($action.Type) {
+            'Move'   { Move-DungeonCursor -State $state -Dx $action.Dx -Dy $action.Dy }
+            'Reveal' { Resolve-DungeonReveal -State $state }
+            'Flag'   { Resolve-DungeonFlag -State $state }
+            'Quit'   { $state.Status = 'Quit'; $state.LastAction = 'Retreat called. Thanks for playing.' }
+        }
+    }
+
+    Write-DungeonFrame -Renderer $renderer -State $state
+    return $state
 }
 
 function Invoke-DungeonSweeperHeadless {

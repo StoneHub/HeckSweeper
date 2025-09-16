@@ -44,6 +44,7 @@ if ($Headless) {
 }
 
 $cursorWasVisible = $null
+$treatControlC = [System.Console]::TreatControlCAsInput
 try {
     if ([System.Console]::CursorVisible) {
         $cursorWasVisible = $true
@@ -51,10 +52,12 @@ try {
     } else {
         $cursorWasVisible = $false
     }
+    [System.Console]::TreatControlCAsInput = $true
 
-    Invoke-DungeonSweeperGame @gameOptions
+    $null = Invoke-DungeonSweeperGame @gameOptions
 }
 finally {
+    [System.Console]::TreatControlCAsInput = $treatControlC
     if ($cursorWasVisible -and -not [System.Console]::CursorVisible) {
         try { [System.Console]::CursorVisible = $true } catch { }
     }
