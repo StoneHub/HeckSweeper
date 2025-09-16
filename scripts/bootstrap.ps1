@@ -6,10 +6,10 @@ if ($PSStyle -and $PSStyle.OutputRendering) {
 }
 
 $utf8 = [System.Text.UTF8Encoding]::new($false)
-[System.Console]::OutputEncoding = $utf8
-[System.Console]::InputEncoding = $utf8
+try { [System.Console]::OutputEncoding = $utf8 } catch { }
+try { [System.Console]::InputEncoding = $utf8 } catch { }
 
 $wtSession = $env:WT_SESSION
 if (-not $wtSession) {
-    Write-Host 'Note: Terminal does not report WT_SESSION; renderer should fall back to 16-color mode if needed.'
+    Write-Host 'Note: Terminal does not report WT_SESSION; renderer may choose ASCII fallback.'
 }

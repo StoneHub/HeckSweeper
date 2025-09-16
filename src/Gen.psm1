@@ -26,13 +26,22 @@ function New-DungeonLayout {
     }
 
     $random = [System.Random]::new($Seed)
-    $chosen = [System.Collections.Generic.HashSet[int]]::new()
+    $chosen = New-Object 'System.Collections.Generic.HashSet[int]'
     while ($chosen.Count -lt $MonsterCount) {
         $index = $random.Next(0, $totalCells)
         $null = $chosen.Add($index)
     }
 
-    $monsterPositions = $chosen.ToArray()
+    $monsterPositions = [int[]]::new($MonsterCount)
+    $iter = 0
+    foreach ($value in $chosen) {
+        $monsterPositions[$iter++] = $value
+    }
+
+    if ($iter -lt $MonsterCount) {
+        $monsterPositions = $monsterPositions[0..($iter-1)]
+    }
+
     [Array]::Sort($monsterPositions)
 
     [pscustomobject]@{

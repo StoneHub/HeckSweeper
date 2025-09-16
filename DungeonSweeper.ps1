@@ -44,21 +44,28 @@ if ($Headless) {
 }
 
 $cursorWasVisible = $null
-$treatControlC = [System.Console]::TreatControlCAsInput
+$treatControlC = $null
+try { $treatControlC = [System.Console]::TreatControlCAsInput } catch { }
 try {
-    if ([System.Console]::CursorVisible) {
-        $cursorWasVisible = $true
-        [System.Console]::CursorVisible = $false
-    } else {
-        $cursorWasVisible = $false
+    try {
+        $cursorWasVisible = [System.Console]::CursorVisible
+    } catch {
+        $cursorWasVisible = $null
     }
-    [System.Console]::TreatControlCAsInput = $true
+
+    if ($cursorWasVisible) {
+        try { [System.Console]::CursorVisible = $false } catch { $cursorWasVisible = $null }
+    }
+
+    try {
+        [System.Console]::TreatControlCAsInput = $true
+    } catch { }
 
     $null = Invoke-DungeonSweeperGame @gameOptions
 }
 finally {
-    [System.Console]::TreatControlCAsInput = $treatControlC
-    if ($cursorWasVisible -and -not [System.Console]::CursorVisible) {
+    try { [System.Console]::TreatControlCAsInput = $treatControlC } catch { }
+    if ($cursorWasVisible) {
         try { [System.Console]::CursorVisible = $true } catch { }
     }
 }

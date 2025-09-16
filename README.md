@@ -12,9 +12,10 @@ DungeonSweeper is a PowerShell 7 terminal roguelite inspired by Minesweeper. Exp
 
 ## Quick Start
 ```bash
-make run     # launch the interactive game loop
-make test    # run the deterministic headless smoke test (Seed=123)
-make package # build build/DungeonSweeper.exe via PS2EXE
+make run         # launch the interactive game loop in this window
+make run-window # open a dedicated Windows Terminal window and start the game
+make test        # run the deterministic headless smoke test (Seed=123)
+make package     # build build/DungeonSweeper.exe via PS2EXE
 ```
 The bootstrap script (`scripts/bootstrap.ps1`) can be run manually if you are not using the Makefile yet.
 
