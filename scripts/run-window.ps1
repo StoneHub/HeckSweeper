@@ -1,6 +1,7 @@
 param(
     [string] $Distro,
-    [string] $WorkingDir
+    [string] $WorkingDir,
+    [string] $Title = 'DungeonSweeper'
 )
 
 Set-StrictMode -Version Latest
@@ -23,20 +24,21 @@ if (-not $wt) {
     throw 'Windows Terminal (wt.exe) not found. Install Windows Terminal or adjust scripts/run-window.ps1.'
 }
 
-$bootstrapCommand = "& ./scripts/bootstrap.ps1; ./DungeonSweeper.ps1"
-$wslArgs = @()
-$wslArgs += '-d'
-$wslArgs += $Distro
-$wslArgs += '--cd'
-$wslArgs += $WorkingDir
-$wslArgs += 'pwsh'
-$wslArgs += '-NoLogo'
-$wslArgs += '-NoProfile'
-$wslArgs += '-ExecutionPolicy'
-$wslArgs += 'Bypass'
-$wslArgs += '-Command'
-$wslArgs += $bootstrapCommand
+$escapedCommand = '"& { ./scripts/bootstrap.ps1; ./DungeonSweeper.ps1 }"'
 
-$wtArgs = @('new-window', 'wsl.exe') + $wslArgs
+$wtArgs = @(
+    'new-window',
+    '--title', $Title,
+    '--',
+    'wsl.exe',
+    '-d', $Distro,
+    '--cd', $WorkingDir,
+    'pwsh',
+    '-NoLogo',
+    '-NoProfile',
+    '-ExecutionPolicy', 'Bypass',
+    '-Command', $escapedCommand
+)
+
 Start-Process -FilePath $wt.Path -ArgumentList $wtArgs | Out-Null
-Write-Host 'Launched DungeonSweeper in a new Windows Terminal window.'
+Write-Host "Launched DungeonSweeper in a new Windows Terminal window (distro=$Distro, cwd=$WorkingDir)."

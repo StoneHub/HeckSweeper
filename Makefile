@@ -3,11 +3,12 @@ WSL_PWSH := pwsh
 WIN_PWSH := /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
 BUILD_DIR := build
 EXE := $(BUILD_DIR)/DungeonSweeper.exe
-WSL_PATH := $(shell pwd)
-WSL_DISTRO := $(shell printf "%s" "$$WSL_DISTRO_NAME")
-ifeq ($(WSL_DISTRO),)
-WSL_DISTRO := $(shell /mnt/c/Windows/System32/wsl.exe -l --quiet 2>/dev/null | head -n1)
-endif
+WSL_REPO := $(shell pwd)
+WIN_REPO := $(shell wslpath -w $(WSL_REPO))
+WIN_INPUT := $(shell wslpath -w $(WSL_REPO)/DungeonSweeper.ps1)
+WIN_OUTPUT := $(shell wslpath -w $(WSL_REPO)/$(EXE))
+WIN_PACKAGE_SCRIPT := $(shell wslpath -w $(WSL_REPO)/scripts/package.ps1)
+WIN_RUN_WINDOW_SCRIPT := $(shell wslpath -w $(WSL_REPO)/scripts/run-window.ps1)
 
 .PHONY: all run run-window test package clean setup-wsl setup-win
 
@@ -32,7 +33,7 @@ run: setup-wsl
 	@$(WSL_PWSH) -NoLogo -ExecutionPolicy Bypass -File ./DungeonSweeper.ps1
 
 run-window: setup-wsl setup-win
-	@"$(WIN_PWSH)" -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/run-window.ps1 -Distro "$(WSL_DISTRO)" -WorkingDir "$(WSL_PATH)"
+	@"$(WIN_PWSH)" -NoLogo -NoProfile -ExecutionPolicy Bypass -File "$(WIN_RUN_WINDOW_SCRIPT)"
 
 # Deterministic smoke test for CI
 test: setup-wsl
@@ -41,7 +42,7 @@ test: setup-wsl
 package: $(EXE)
 
 $(EXE): DungeonSweeper.ps1 scripts/package.ps1 | $(BUILD_DIR) setup-win
-	@"$(WIN_PWSH)" -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1 -Input ./DungeonSweeper.ps1 -Output $(EXE)
+	@"$(WIN_PWSH)" -NoLogo -NoProfile -ExecutionPolicy Bypass -File "$(WIN_PACKAGE_SCRIPT)" -InFile "$(WIN_INPUT)" -OutFile "$(WIN_OUTPUT)"
 	@echo "Packed -> $(EXE)"
 
 $(BUILD_DIR):
