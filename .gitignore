@@ -1,2 +1,8 @@
 build/
 *.exe
+
+# Go binaries
+hecksweeper
+hecksweeper-*
+coverage.out
+coverage.html

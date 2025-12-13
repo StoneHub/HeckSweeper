@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# Code-Playground
-=======
 # DungeonSweeper
 
 DungeonSweeper is a PowerShell 7 terminal roguelite inspired by Minesweeper. Explore a fixed 24×16 dungeon from WSL with crisp ANSI rendering or an ASCII fallback.
@@ -28,4 +25,3 @@ Enable compatibility rendering with `./DungeonSweeper.ps1 -Compat`. The command 
 
 ## Packaging Notes
 `make package` calls `scripts/package.ps1` from the Windows host to produce `build/DungeonSweeper.exe`. The wrapper ensures PS2EXE is available and writes the executable without polluting the repository. Remove the generated binary before committing.
->>>>>>> 8b89520 (Add .gitignore, enhance input handling, and implement packaging script)

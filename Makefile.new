@@ -1,0 +1,107 @@
+# HeckSweeper - Go + bubbletea version
+# Clean, lightweight terminal roguelite
+
+.PHONY: build run run-unicode run-ascii clean test install help
+
+# Default target
+all: build
+
+# Build the binary
+build:
+	@echo "Building HeckSweeper..."
+	@go build -o hecksweeper ./cmd/hecksweeper
+	@echo "✓ Built: ./hecksweeper ($(shell du -h hecksweeper | cut -f1))"
+
+# Build optimized release binary (smaller, no debug symbols)
+release:
+	@echo "Building optimized release binary..."
+	@go build -ldflags="-s -w" -o hecksweeper ./cmd/hecksweeper
+	@echo "✓ Built: ./hecksweeper ($(shell du -h hecksweeper | cut -f1))"
+
+# Run with default settings (Unicode glyphs)
+run: build
+	@./hecksweeper
+
+# Run with Unicode glyphs (explicit)
+run-unicode: build
+	@./hecksweeper -unicode=true
+
+# Run with ASCII glyphs (compatible mode)
+run-ascii: build
+	@./hecksweeper -unicode=false
+
+# Run with specific seed for reproducible game
+run-seed: build
+	@./hecksweeper -seed=42
+
+# Run with custom board size
+run-large: build
+	@./hecksweeper -width=32 -height=24
+
+run-small: build
+	@./hecksweeper -width=16 -height=12
+
+# Run tests
+test:
+	@echo "Running tests..."
+	@go test ./...
+
+# Run tests with coverage
+test-coverage:
+	@echo "Running tests with coverage..."
+	@go test -cover ./...
+	@go test -coverprofile=coverage.out ./...
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "✓ Coverage report: coverage.html"
+
+# Install to system (requires sudo/root)
+install: release
+	@echo "Installing to /usr/local/bin/hecksweeper..."
+	@cp hecksweeper /usr/local/bin/
+	@chmod +x /usr/local/bin/hecksweeper
+	@echo "✓ Installed. Run with: hecksweeper"
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning..."
+	@rm -f hecksweeper coverage.out coverage.html
+	@echo "✓ Clean"
+
+# Format code
+fmt:
+	@echo "Formatting code..."
+	@go fmt ./...
+
+# Lint code (requires golangci-lint)
+lint:
+	@echo "Linting..."
+	@golangci-lint run
+
+# Update dependencies
+deps:
+	@echo "Updating dependencies..."
+	@go get -u ./...
+	@go mod tidy
+
+# Show help
+help:
+	@echo "HeckSweeper - Terminal Roguelite"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  make build        - Build the binary"
+	@echo "  make release      - Build optimized binary (smaller)"
+	@echo "  make run          - Build and run with default settings"
+	@echo "  make run-ascii    - Run in ASCII mode (compatible)"
+	@echo "  make run-seed     - Run with fixed seed (seed=42)"
+	@echo "  make run-large    - Run with 32x24 board"
+	@echo "  make run-small    - Run with 16x12 board"
+	@echo "  make test         - Run tests"
+	@echo "  make install      - Install to /usr/local/bin"
+	@echo "  make clean        - Remove build artifacts"
+	@echo "  make help         - Show this help"
+	@echo ""
+	@echo "Command-line flags:"
+	@echo "  -width N          Board width (default: 24)"
+	@echo "  -height N         Board height (default: 16)"
+	@echo "  -seed N           Random seed (default: random)"
+	@echo "  -unicode BOOL     Use Unicode glyphs (default: true)"
