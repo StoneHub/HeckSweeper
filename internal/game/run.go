@@ -62,11 +62,30 @@ func (r *Run) StartNextFloor() {
 	r.FloorNum++
 	cfg := GetFloorConfig(r.FloorNum)
 
+	// Apply Lucky Charm: reduce density by 2% per instance
+	density := cfg.MonsterDensity
+	for _, pu := range r.PowerUps {
+		if pu.ID == PowerUpLuckyCharm && !pu.Consumed {
+			density -= 0.02
+		}
+	}
+	if density < 0.05 {
+		density = 0.05 // Minimum density floor
+	}
+
 	// Derive a floor-specific seed so each floor is unique but deterministic
 	floorSeed := r.Seed + int64(r.FloorNum)*7919
 
 	r.CurrentGame = NewGame(cfg.Width, cfg.Height, floorSeed, r.UseUnicode)
+	// Re-generate board with adjusted density if Lucky Charm is active
+	if density != cfg.MonsterDensity {
+		r.CurrentGame.Board = GenerateBoard(cfg.Width, cfg.Height, density, floorSeed)
+	}
+
 	r.FloorStarted = time.Now()
+
+	// Apply floor-start power-ups (Scout, X-Ray, Dowsing)
+	ApplyFloorStartPowerUps(r)
 }
 
 // CompleteFloor records the result of the current floor and returns it

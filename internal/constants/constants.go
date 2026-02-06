@@ -21,6 +21,7 @@ const (
 	RunStateTitle   = "title"
 	RunStatePlaying = "run_playing" // Active floor
 	RunStateCleared = "run_cleared" // Floor cleared, showing stats
+	RunStatePowerUp = "run_powerup" // Choosing a power-up
 	RunStateDead    = "run_dead"    // Hit a monster, run over
 	RunStateSummary = "run_summary" // Final run stats
 )

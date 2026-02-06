@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"math/rand"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stonehub/hecksweeper/internal/constants"
+	"github.com/stonehub/hecksweeper/internal/game"
 )
 
 // Update handles messages and updates the model (required by bubbletea)
@@ -31,6 +34,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handlePlayingKeys(msg)
 	case constants.RunStateCleared:
 		return m.handleClearedKeys(msg)
+	case constants.RunStatePowerUp:
+		return m.handlePowerUpKeys(msg)
 	case constants.RunStateDead:
 		return m.handleDeadKeys(msg)
 	case constants.RunStateSummary:
@@ -86,8 +91,13 @@ func (m Model) handlePlayingKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.lastResult = m.run.CompleteFloor()
 			m.runState = constants.RunStateCleared
 		} else if g.State == constants.GameStateLost {
-			m.lastResult = m.run.CompleteFloor()
-			m.runState = constants.RunStateDead
+			// Check for death-prevention power-ups
+			if game.HandleDeathPowerUps(m.run) {
+				// Death was prevented, continue playing
+			} else {
+				m.lastResult = m.run.CompleteFloor()
+				m.runState = constants.RunStateDead
+			}
 		}
 	case "f":
 		g.ToggleFlag()
@@ -100,13 +110,51 @@ func (m Model) handlePlayingKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleClearedKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter", " ", "n":
-		// Advance to next floor
-		m.run.StartNextFloor()
-		m.runState = constants.RunStatePlaying
+		// Generate power-up choices for the player
+		existingIDs := []game.PowerUpID{}
+		for _, pu := range m.run.PowerUps {
+			if !pu.Consumed {
+				existingIDs = append(existingIDs, pu.ID)
+			}
+		}
+		rng := rand.New(rand.NewSource(m.run.Seed + int64(m.run.FloorNum)*1009))
+		m.powerUpChoices = game.PickPowerUpChoices(rng, 3, existingIDs)
+		m.runState = constants.RunStatePowerUp
 	case "q", "esc":
 		m.runState = constants.RunStateSummary
 	}
 	return m, nil
+}
+
+// handlePowerUpKeys handles input on the power-up selection screen
+func (m Model) handlePowerUpKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "1":
+		if len(m.powerUpChoices) >= 1 {
+			m.run.AddPowerUp(m.powerUpChoices[0])
+			m.advanceToNextFloor()
+		}
+	case "2":
+		if len(m.powerUpChoices) >= 2 {
+			m.run.AddPowerUp(m.powerUpChoices[1])
+			m.advanceToNextFloor()
+		}
+	case "3":
+		if len(m.powerUpChoices) >= 3 {
+			m.run.AddPowerUp(m.powerUpChoices[2])
+			m.advanceToNextFloor()
+		}
+	case "q", "esc":
+		m.runState = constants.RunStateSummary
+	}
+	return m, nil
+}
+
+// advanceToNextFloor starts the next floor after power-up selection
+func (m *Model) advanceToNextFloor() {
+	m.run.StartNextFloor()
+	m.powerUpChoices = nil
+	m.runState = constants.RunStatePlaying
 }
 
 // handleDeadKeys handles input on the death screen

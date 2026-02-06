@@ -60,6 +60,7 @@ type Run struct {
 	Seed         int64
 	FloorNum     int
 	TotalScore   int
+	PowerUps     []ActivePowerUp
 	CurrentGame  *Game
 	FloorHistory []FloorResult
 	StartedAt    time.Time

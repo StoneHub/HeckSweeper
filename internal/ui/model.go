@@ -8,13 +8,14 @@ import (
 
 // Model represents the UI state for bubbletea
 type Model struct {
-	run        *game.Run
-	runState   string // Current run state (title, playing, cleared, dead, summary)
-	lastResult game.FloorResult
-	glyphs     constants.GlyphSet
-	seed       int64
-	useUnicode bool
-	quitting   bool
+	run            *game.Run
+	runState       string // Current run state (title, playing, cleared, dead, summary)
+	lastResult     game.FloorResult
+	powerUpChoices []game.PowerUpDef // Current power-up options being offered
+	glyphs         constants.GlyphSet
+	seed           int64
+	useUnicode     bool
+	quitting       bool
 }
 
 // NewModel creates a new UI model starting at the title screen

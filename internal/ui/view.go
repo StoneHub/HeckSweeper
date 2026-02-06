@@ -22,6 +22,8 @@ func (m Model) View() string {
 		return m.renderPlaying()
 	case constants.RunStateCleared:
 		return m.renderCleared()
+	case constants.RunStatePowerUp:
+		return m.renderPowerUpSelection()
 	case constants.RunStateDead:
 		return m.renderDead()
 	case constants.RunStateSummary:
@@ -60,6 +62,13 @@ func (m Model) renderPlaying() string {
 	// Render the board
 	b.WriteString(m.renderBoard())
 	b.WriteString("\n")
+
+	// Active power-ups
+	if names := m.run.PowerUpNames(); len(names) > 0 {
+		puStr := fmt.Sprintf("Power-ups: %s", strings.Join(names, ", "))
+		b.WriteString(statsStyle.Render(puStr))
+		b.WriteString("\n")
+	}
 
 	// Help text
 	b.WriteString(helpStyle.Render("Arrow/WASD: Move  |  Space/Enter: Reveal  |  F: Flag  |  Esc: Quit run"))
