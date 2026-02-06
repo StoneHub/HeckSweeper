@@ -24,12 +24,16 @@ func (m Model) View() string {
 		return m.renderCleared()
 	case constants.RunStatePowerUp:
 		return m.renderPowerUpSelection()
+	case constants.RunStateDeathReveal:
+		return m.renderDeathReveal()
 	case constants.RunStateDead:
 		return m.renderDead()
 	case constants.RunStateSummary:
 		return m.renderSummary()
 	case constants.RunStateLeaderboard:
 		return m.renderLeaderboard()
+	case constants.RunStateTransition:
+		return m.renderTransition()
 	}
 
 	return ""
@@ -72,8 +76,63 @@ func (m Model) renderPlaying() string {
 		b.WriteString("\n")
 	}
 
-	// Help text
-	b.WriteString(helpStyle.Render("Arrow/WASD: Move  |  Space/Enter: Reveal  |  F: Flag  |  Esc: Quit run"))
+	// Help text (show undo key when Time Warp is available)
+	helpText := "Arrow/WASD: Move  |  Space/Enter: Reveal  |  F: Flag  |  Esc: Quit run"
+	if m.run.HasPowerUp(game.PowerUpTimeWarp) && m.run.UndoUsedFloor != m.run.FloorNum {
+		helpText = "Arrow/WASD: Move  |  Space/Enter: Reveal  |  F: Flag  |  U: Undo  |  Esc: Quit"
+	}
+	b.WriteString(helpStyle.Render(helpText))
+
+	return boardContainerStyle.Render(b.String())
+}
+
+// renderDeathReveal renders the board during mine cascade animation
+func (m Model) renderDeathReveal() string {
+	var b strings.Builder
+
+	header := "  YOU HIT A MINE!  "
+	b.WriteString(gameOverStyle.Render(header))
+	b.WriteString("\n\n")
+
+	// Show the board with mines being revealed
+	b.WriteString(m.renderBoard())
+	b.WriteString("\n")
+
+	remaining := len(m.deathMonsters) - m.deathRevealIdx
+	if remaining > 0 {
+		b.WriteString(statsStyle.Render(fmt.Sprintf("  Revealing mines... %d remaining", remaining)))
+	} else {
+		b.WriteString(helpStyle.Render("Press Enter for run summary  |  Esc to quit"))
+	}
+
+	return boardContainerStyle.Render(b.String())
+}
+
+// renderTransition renders the floor transition animation
+func (m Model) renderTransition() string {
+	var b strings.Builder
+
+	dots := strings.Repeat(".", (m.transitionTicks%3)+1)
+	header := fmt.Sprintf("  DESCENDING%s  ", dots)
+	b.WriteString(titleStyle.Render(header))
+	b.WriteString("\n\n")
+
+	cfg := game.GetFloorConfig(m.run.FloorNum)
+	info := strings.Join([]string{
+		fmt.Sprintf("  Floor %d", m.run.FloorNum),
+		fmt.Sprintf("  Board: %d×%d", cfg.Width, cfg.Height),
+		fmt.Sprintf("  Score: %d", m.run.TotalScore),
+	}, "\n")
+	b.WriteString(statsStyle.Render(info))
+	b.WriteString("\n\n")
+
+	if names := m.run.PowerUpNames(); len(names) > 0 {
+		puStr := fmt.Sprintf("  Power-ups: %s", strings.Join(names, ", "))
+		b.WriteString(statsStyle.Render(puStr))
+		b.WriteString("\n")
+	}
+
+	b.WriteString(helpStyle.Render("Press any key to skip"))
 
 	return boardContainerStyle.Render(b.String())
 }

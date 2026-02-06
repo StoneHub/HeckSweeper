@@ -26,6 +26,7 @@ const (
 	PowerUpSwiftBoots PowerUpID = "swift_boots"
 	PowerUpFlagMaster PowerUpID = "flag_master"
 	PowerUpSecondWind PowerUpID = "second_wind"
+	PowerUpTimeWarp   PowerUpID = "time_warp"
 )
 
 // PowerUpDef defines a power-up's properties
@@ -54,6 +55,7 @@ var powerUpCatalog = []PowerUpDef{
 	{PowerUpSwiftBoots, "Swift Boots", "+50% speed bonus multiplier", Common},
 	{PowerUpFlagMaster, "Flag Master", "Auto-flag obvious monster cells on reveal", Common},
 	{PowerUpSecondWind, "Second Wind", "Revive once per run on death (consumed)", Legendary},
+	{PowerUpTimeWarp, "Time Warp", "Rewind your last move once per floor (auto-prevents death)", Rare},
 }
 
 // rarityWeights controls how likely each rarity is to be offered
@@ -256,7 +258,22 @@ func applyDowsing(g *Game) {
 
 // HandleDeathPowerUps checks if any power-up prevents death.
 // Returns true if death was prevented.
+// Priority: Time Warp (renewable) > Shield/SecondWind (consumable)
 func HandleDeathPowerUps(run *Run) bool {
+	// First: check Time Warp (renewable, recharges each floor)
+	for i := range run.PowerUps {
+		pu := &run.PowerUps[i]
+		if pu.Consumed || pu.ID != PowerUpTimeWarp {
+			continue
+		}
+		if run.LastSnapshot != nil && run.UndoUsedFloor != run.FloorNum {
+			run.RestoreSnapshot()
+			run.UndoUsedFloor = run.FloorNum
+			return true
+		}
+	}
+
+	// Second: check consumable death prevention
 	for i := range run.PowerUps {
 		pu := &run.PowerUps[i]
 		if pu.Consumed {
@@ -265,10 +282,8 @@ func HandleDeathPowerUps(run *Run) bool {
 
 		switch pu.ID {
 		case PowerUpShield:
-			// Shield absorbs one hit
 			pu.Consumed = true
 			g := run.CurrentGame
-			// Un-reveal the monster, keep playing
 			cell := g.Board.GetCell(g.CursorPos.X, g.CursorPos.Y)
 			if cell != nil {
 				cell.Revealed = false
@@ -277,7 +292,6 @@ func HandleDeathPowerUps(run *Run) bool {
 			return true
 
 		case PowerUpSecondWind:
-			// Second wind: hide all monsters, keep revealed safe cells
 			pu.Consumed = true
 			g := run.CurrentGame
 			for j := range g.Board.Cells {

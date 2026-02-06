@@ -19,6 +19,11 @@ type Model struct {
 	useUnicode     bool
 	quitting       bool
 
+	// Animation state
+	deathMonsters  []game.Position // Monster positions for cascade reveal
+	deathRevealIdx int             // How many monsters have been revealed so far
+	transitionTicks int            // Counter for transition animation
+
 	// Leaderboard and persistence
 	store              *storage.Store
 	playerID           string
