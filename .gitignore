@@ -4,5 +4,9 @@ build/
 # Go binaries (root only, not cmd/ subdirs)
 /hecksweeper
 /hecksweeper-*
+/hecksweeper-server
+
+# SSH host keys
+.ssh/
 coverage.out
 coverage.html

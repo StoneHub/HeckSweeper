@@ -6,6 +6,16 @@
 # Default target
 all: build
 
+# Build the SSH server
+server:
+	@echo "Building HeckSweeper SSH server..."
+	@go build -o hecksweeper-server ./cmd/server
+	@echo "✓ Built: ./hecksweeper-server ($(shell du -h hecksweeper-server | cut -f1))"
+
+# Run the SSH server
+run-server: server
+	@./hecksweeper-server --port 2222
+
 # Build the binary
 build:
 	@echo "Building HeckSweeper..."
