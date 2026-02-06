@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stonehub/hecksweeper/internal/constants"
+	"github.com/stonehub/hecksweeper/internal/daily"
 	"github.com/stonehub/hecksweeper/internal/game"
 )
 
@@ -40,6 +41,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleDeadKeys(msg)
 	case constants.RunStateSummary:
 		return m.handleSummaryKeys(msg)
+	case constants.RunStateLeaderboard:
+		return m.handleLeaderboardKeys(msg)
 	}
 
 	return m, nil
@@ -50,6 +53,10 @@ func (m Model) handleTitleKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "n", "enter", " ":
 		m.startNewRun(false)
+	case "d":
+		m.startNewRun(true)
+	case "l":
+		m.showLeaderboard("daily")
 	case "q", "esc":
 		m.quitting = true
 		return m, tea.Quit
@@ -97,6 +104,7 @@ func (m Model) handlePlayingKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else {
 				m.lastResult = m.run.CompleteFloor()
 				m.runState = constants.RunStateDead
+				m.submitScore()
 			}
 		}
 	case "f":
@@ -121,6 +129,7 @@ func (m Model) handleClearedKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.powerUpChoices = game.PickPowerUpChoices(rng, 3, existingIDs)
 		m.runState = constants.RunStatePowerUp
 	case "q", "esc":
+		m.submitScore()
 		m.runState = constants.RunStateSummary
 	}
 	return m, nil
@@ -145,6 +154,7 @@ func (m Model) handlePowerUpKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.advanceToNextFloor()
 		}
 	case "q", "esc":
+		m.submitScore()
 		m.runState = constants.RunStateSummary
 	}
 	return m, nil
@@ -172,11 +182,43 @@ func (m Model) handleDeadKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleSummaryKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "n", "enter", " ":
-		// Start a new run with incremented seed
 		m.seed++
 		m.startNewRun(false)
+	case "l":
+		m.showLeaderboard("daily")
 	case "q", "esc":
 		m.runState = constants.RunStateTitle
 	}
 	return m, nil
+}
+
+// handleLeaderboardKeys handles input on the leaderboard screen
+func (m Model) handleLeaderboardKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "d":
+		m.showLeaderboard("daily")
+	case "a":
+		m.showLeaderboard("alltime")
+	case "b", "q", "esc":
+		m.runState = constants.RunStateTitle
+	}
+	return m, nil
+}
+
+// showLeaderboard loads and displays leaderboard data
+func (m *Model) showLeaderboard(tab string) {
+	m.leaderboardTab = tab
+	m.leaderboardDate = daily.DateString()
+
+	if m.store != nil {
+		if tab == "daily" {
+			m.leaderboardEntries = m.store.GetDailyLeaderboard(m.leaderboardDate, 10, m.playerID)
+		} else {
+			m.leaderboardEntries = m.store.GetAllTimeLeaderboard(10, m.playerID)
+		}
+	} else {
+		m.leaderboardEntries = nil
+	}
+
+	m.runState = constants.RunStateLeaderboard
 }

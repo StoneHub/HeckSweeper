@@ -94,7 +94,7 @@ func (m Model) renderSummary() string {
 	}
 	b.WriteString("\n")
 
-	b.WriteString(helpStyle.Render("Press N for new run  |  Esc to return to title"))
+	b.WriteString(helpStyle.Render("Press N for new run  |  L for leaderboard  |  Esc to return to title"))
 
 	return boardContainerStyle.Render(b.String())
 }

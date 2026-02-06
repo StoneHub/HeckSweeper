@@ -14,6 +14,7 @@ func main() {
 	flag.StringVar(&cfg.Host, "host", cfg.Host, "Listen address")
 	flag.IntVar(&cfg.Port, "port", cfg.Port, "SSH port")
 	flag.StringVar(&cfg.KeyPath, "key", cfg.KeyPath, "Host key path (auto-generated if missing)")
+	flag.StringVar(&cfg.DataPath, "data", cfg.DataPath, "Data file path for scores and leaderboards")
 	flag.Parse()
 
 	if err := server.Start(cfg); err != nil {

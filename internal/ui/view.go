@@ -28,6 +28,8 @@ func (m Model) View() string {
 		return m.renderDead()
 	case constants.RunStateSummary:
 		return m.renderSummary()
+	case constants.RunStateLeaderboard:
+		return m.renderLeaderboard()
 	}
 
 	return ""

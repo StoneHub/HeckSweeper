@@ -8,5 +8,8 @@ build/
 
 # SSH host keys
 .ssh/
+
+# Game data
+hecksweeper_data.json
 coverage.out
 coverage.html

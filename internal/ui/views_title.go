@@ -27,11 +27,13 @@ func (m Model) renderTitle() string {
 	b.WriteString(titleStyle.Render(title))
 	b.WriteString("\n\n")
 
-	menu := strings.Join([]string{
+	menuItems := []string{
 		"    [N] New Run",
+		"    [D] Daily Challenge",
+		"    [L] Leaderboard",
 		"    [Q] Quit",
-	}, "\n")
-	b.WriteString(menuStyle.Render(menu))
+	}
+	b.WriteString(menuStyle.Render(strings.Join(menuItems, "\n")))
 	b.WriteString("\n\n")
 
 	b.WriteString(helpStyle.Render(fmt.Sprintf("  Seed: %d", m.seed)))

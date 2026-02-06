@@ -23,7 +23,8 @@ const (
 	RunStateCleared = "run_cleared" // Floor cleared, showing stats
 	RunStatePowerUp = "run_powerup" // Choosing a power-up
 	RunStateDead    = "run_dead"    // Hit a monster, run over
-	RunStateSummary = "run_summary" // Final run stats
+	RunStateSummary     = "run_summary"     // Final run stats
+	RunStateLeaderboard = "run_leaderboard" // Viewing leaderboard
 )
 
 // Glyphs for rendering

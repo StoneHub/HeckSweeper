@@ -5,21 +5,45 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/ssh"
+	gossh "golang.org/x/crypto/ssh"
+
+	"github.com/stonehub/hecksweeper/internal/storage"
 	"github.com/stonehub/hecksweeper/internal/ui"
 )
+
+// gameStore is the shared persistent store for all sessions
+var gameStore *storage.Store
+
+// SetStore configures the shared store for all game sessions
+func SetStore(s *storage.Store) {
+	gameStore = s
+}
 
 // gameHandler creates a new bubbletea model for each SSH session.
 // Each connection gets an independent game instance.
 func gameHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
-	// Use current timestamp as seed for each new connection
 	seed := time.Now().UnixNano()
 
-	// Check if the client sent a PLAYER_NAME env var
-	// (via: ssh -o SetEnv=PLAYER_NAME=myname ...)
-	// This is stored for potential future leaderboard use
-	_ = getEnv(sess, "PLAYER_NAME")
+	// Identify player by SSH key fingerprint (if provided)
+	playerID := "anon"
+	playerName := ""
+	if pubKey := sess.PublicKey(); pubKey != nil {
+		playerID = gossh.FingerprintSHA256(pubKey)
+	}
 
-	model := ui.NewModel(seed, true)
+	// Check for player name env var
+	if name := getEnv(sess, "PLAYER_NAME"); name != "" {
+		playerName = name
+	} else if sess.User() != "" {
+		playerName = sess.User()
+	}
+
+	// Record player in store
+	if gameStore != nil {
+		gameStore.RecordPlayer(playerID, playerName)
+	}
+
+	model := ui.NewModelWithStore(seed, true, gameStore, playerID, playerName)
 
 	return model, []tea.ProgramOption{tea.WithAltScreen()}
 }
