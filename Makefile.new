@@ -1,107 +1,128 @@
-# HeckSweeper - Go + bubbletea version
-# Clean, lightweight terminal roguelite
+# HeckSweeper - Terminal roguelite minesweeper
+# Play locally or host over SSH
 
-.PHONY: build run run-unicode run-ascii clean test install help
+.PHONY: build server run run-server run-ascii clean test test-coverage install release fmt lint deps docker help
 
 # Default target
 all: build
 
-# Build the binary
+# Build the local game client
 build:
 	@echo "Building HeckSweeper..."
 	@go build -o hecksweeper ./cmd/hecksweeper
-	@echo "✓ Built: ./hecksweeper ($(shell du -h hecksweeper | cut -f1))"
+	@echo "Built: ./hecksweeper"
 
-# Build optimized release binary (smaller, no debug symbols)
+# Build the SSH server
+server:
+	@echo "Building HeckSweeper SSH server..."
+	@go build -o hecksweeper-server ./cmd/server
+	@echo "Built: ./hecksweeper-server"
+
+# Build optimized release binaries
 release:
-	@echo "Building optimized release binary..."
+	@echo "Building optimized release binaries..."
 	@go build -ldflags="-s -w" -o hecksweeper ./cmd/hecksweeper
-	@echo "✓ Built: ./hecksweeper ($(shell du -h hecksweeper | cut -f1))"
+	@go build -ldflags="-s -w" -o hecksweeper-server ./cmd/server
+	@echo "Built: ./hecksweeper, ./hecksweeper-server"
 
-# Run with default settings (Unicode glyphs)
+# Run the local game
 run: build
 	@./hecksweeper
 
-# Run with Unicode glyphs (explicit)
-run-unicode: build
-	@./hecksweeper -unicode=true
-
-# Run with ASCII glyphs (compatible mode)
+# Run in ASCII mode
 run-ascii: build
 	@./hecksweeper -unicode=false
 
-# Run with specific seed for reproducible game
+# Run with specific seed
 run-seed: build
 	@./hecksweeper -seed=42
 
-# Run with custom board size
-run-large: build
-	@./hecksweeper -width=32 -height=24
-
-run-small: build
-	@./hecksweeper -width=16 -height=12
+# Run the SSH server
+run-server: server
+	@./hecksweeper-server --port 2222
 
 # Run tests
 test:
 	@echo "Running tests..."
 	@go test ./...
 
+# Run tests with verbose output
+test-v:
+	@go test -v ./...
+
 # Run tests with coverage
 test-coverage:
-	@echo "Running tests with coverage..."
 	@go test -cover ./...
 	@go test -coverprofile=coverage.out ./...
 	@go tool cover -html=coverage.out -o coverage.html
-	@echo "✓ Coverage report: coverage.html"
+	@echo "Coverage report: coverage.html"
 
-# Install to system (requires sudo/root)
+# Install to system
 install: release
-	@echo "Installing to /usr/local/bin/hecksweeper..."
 	@cp hecksweeper /usr/local/bin/
-	@chmod +x /usr/local/bin/hecksweeper
-	@echo "✓ Installed. Run with: hecksweeper"
+	@cp hecksweeper-server /usr/local/bin/
+	@echo "Installed to /usr/local/bin/"
+
+# Build Docker image
+docker:
+	docker build -t hecksweeper .
+
+# Run Docker container
+docker-run: docker
+	docker run -p 2222:2222 -v hecksweeper-data:/data hecksweeper
 
 # Clean build artifacts
 clean:
-	@echo "Cleaning..."
-	@rm -f hecksweeper coverage.out coverage.html
-	@echo "✓ Clean"
+	@rm -f hecksweeper hecksweeper-server coverage.out coverage.html
+	@echo "Clean"
 
 # Format code
 fmt:
-	@echo "Formatting code..."
 	@go fmt ./...
 
-# Lint code (requires golangci-lint)
+# Lint code
 lint:
-	@echo "Linting..."
 	@golangci-lint run
 
 # Update dependencies
 deps:
-	@echo "Updating dependencies..."
 	@go get -u ./...
 	@go mod tidy
 
+# Cross-compile for all platforms
+cross:
+	@echo "Building for Linux amd64..."
+	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/hecksweeper-linux-amd64 ./cmd/hecksweeper
+	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/hecksweeper-server-linux-amd64 ./cmd/server
+	@echo "Building for macOS amd64..."
+	@GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/hecksweeper-darwin-amd64 ./cmd/hecksweeper
+	@echo "Building for macOS arm64..."
+	@GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/hecksweeper-darwin-arm64 ./cmd/hecksweeper
+	@echo "Building for Windows..."
+	@GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/hecksweeper-windows-amd64.exe ./cmd/hecksweeper
+	@echo "Built all targets in dist/"
+
 # Show help
 help:
-	@echo "HeckSweeper - Terminal Roguelite"
+	@echo "HeckSweeper - Terminal Roguelite Minesweeper"
 	@echo ""
-	@echo "Available targets:"
-	@echo "  make build        - Build the binary"
-	@echo "  make release      - Build optimized binary (smaller)"
-	@echo "  make run          - Build and run with default settings"
-	@echo "  make run-ascii    - Run in ASCII mode (compatible)"
-	@echo "  make run-seed     - Run with fixed seed (seed=42)"
-	@echo "  make run-large    - Run with 32x24 board"
-	@echo "  make run-small    - Run with 16x12 board"
+	@echo "Play:"
+	@echo "  make run          - Play locally"
+	@echo "  make run-server   - Start SSH server (ssh -p 2222 localhost)"
+	@echo ""
+	@echo "Build:"
+	@echo "  make build        - Build local client"
+	@echo "  make server       - Build SSH server"
+	@echo "  make release      - Build optimized binaries"
+	@echo "  make docker       - Build Docker image"
+	@echo "  make cross        - Cross-compile for all platforms"
+	@echo ""
+	@echo "Test:"
 	@echo "  make test         - Run tests"
-	@echo "  make install      - Install to /usr/local/bin"
-	@echo "  make clean        - Remove build artifacts"
-	@echo "  make help         - Show this help"
+	@echo "  make test-v       - Run tests (verbose)"
+	@echo "  make test-coverage - Run tests with coverage report"
 	@echo ""
-	@echo "Command-line flags:"
-	@echo "  -width N          Board width (default: 24)"
-	@echo "  -height N         Board height (default: 16)"
-	@echo "  -seed N           Random seed (default: random)"
-	@echo "  -unicode BOOL     Use Unicode glyphs (default: true)"
+	@echo "Other:"
+	@echo "  make clean        - Remove build artifacts"
+	@echo "  make fmt          - Format code"
+	@echo "  make install      - Install to /usr/local/bin"

@@ -11,30 +11,34 @@ const (
 	// Default seed for reproducible games
 	DefaultSeed = int64(42)
 
-	// Cell states
-	CellHidden   = "hidden"
-	CellRevealed = "revealed"
-	CellFlagged  = "flagged"
-
-	// Game states
+	// Game states (single floor)
 	GameStatePlaying = "playing"
 	GameStateWon     = "won"
 	GameStateLost    = "lost"
 	GameStateMenu    = "menu"
+
+	// Run states (roguelite progression)
+	RunStateTitle   = "title"
+	RunStatePlaying = "run_playing" // Active floor
+	RunStateCleared = "run_cleared" // Floor cleared, showing stats
+	RunStatePowerUp = "run_powerup" // Choosing a power-up
+	RunStateDead    = "run_dead"    // Hit a monster, run over
+	RunStateSummary     = "run_summary"     // Final run stats
+	RunStateLeaderboard = "run_leaderboard" // Viewing leaderboard
 )
 
 // Glyphs for rendering
 type GlyphSet struct {
-	Hidden       string
-	Flagged      string
-	Monster      string
-	Cursor       string
-	BorderHoriz  string
-	BorderVert   string
-	BorderTL     string
-	BorderTR     string
-	BorderBL     string
-	BorderBR     string
+	Hidden      string
+	Flagged     string
+	Monster     string
+	Cursor      string
+	BorderHoriz string
+	BorderVert  string
+	BorderTL    string
+	BorderTR    string
+	BorderBL    string
+	BorderBR    string
 }
 
 var (

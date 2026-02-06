@@ -1,27 +1,93 @@
-# DungeonSweeper
+# HeckSweeper
 
-DungeonSweeper is a PowerShell 7 terminal roguelite inspired by Minesweeper. Explore a fixed 24×16 dungeon from WSL with crisp ANSI rendering or an ASCII fallback.
+A roguelite minesweeper for the terminal. Clear floors, collect power-ups, climb the leaderboard. Play locally or over SSH.
 
-## Requirements
-- PowerShell 7 (`pwsh`) available in WSL for development and gameplay.
-- Windows PowerShell (`powershell.exe`) on the host for packaging to `.exe`.
-- Optional: PS2EXE module (installed automatically during packaging).
+## Play
 
-## Quick Start
 ```bash
-make run         # launch the interactive game loop in this window
-make run-window # open a dedicated Windows Terminal window and start the game (requires Windows Terminal)
-make test        # run the deterministic headless smoke test (Seed=123)
-make debug       # print a monster/threat grid (override seed via SEED=123456)
-make package     # build build/DungeonSweeper.exe via PS2EXE
+# Local
+go run ./cmd/hecksweeper
+
+# Over SSH (connect to a hosted server)
+ssh -p 2222 localhost
 ```
-The bootstrap script (`scripts/bootstrap.ps1`) can be run manually if you are not using the Makefile yet.
+
+## How It Works
+
+Each run is a series of minesweeper floors with escalating difficulty. Clear a floor, pick a power-up, descend deeper. Die and it's over.
+
+- **Floors 1-6**: Board grows from 12x8 to 24x16, monster density from 12% to 22%
+- **Floor 7+**: Max size, density keeps climbing (caps at 35%)
+- **Power-ups**: Scout, Shield, X-Ray, Lucky Charm, and more -- 8 total across 4 rarity tiers
+- **Daily Challenge**: Same seed for everyone, compete on the leaderboard
+- **Scoring**: Cells revealed + speed bonus + efficiency bonus, scaled by floor depth
 
 ## Controls
-Use the arrow keys or WASD (also HJKL) to move the cursor. `Space`/`Enter` reveal the current room, `F` toggles a flag, and `Q` (or `Esc`/`Ctrl+C`) quits. Hidden rooms show `·` (or `.` in ASCII mode), flagged rooms use `⚑`/`F`, and revealed monsters display `☠`/`X`.
 
-## Headless & Compatibility Modes
-Enable compatibility rendering with `./DungeonSweeper.ps1 -Compat`. The command `./DungeonSweeper.ps1 -Headless -Seed <value>` emits a structured summary for testing and reproducible scenarios. ASCII mode uses plain borders and cursor markers so legacy terminals remain usable.
+| Key | Action |
+|-----|--------|
+| Arrow / WASD / HJKL | Move cursor |
+| Space / Enter | Reveal cell |
+| F | Toggle flag |
+| Esc | Back / Quit |
 
-## Packaging Notes
-`make package` calls `scripts/package.ps1` from the Windows host to produce `build/DungeonSweeper.exe`. The wrapper ensures PS2EXE is available and writes the executable without polluting the repository. Remove the generated binary before committing.
+## Build
+
+Requires Go 1.24+.
+
+```bash
+make -f Makefile.new build       # Build local client
+make -f Makefile.new server      # Build SSH server
+make -f Makefile.new test        # Run tests (40+ tests)
+make -f Makefile.new release     # Optimized binaries
+make -f Makefile.new cross       # Cross-compile all platforms
+```
+
+## Host an SSH Server
+
+```bash
+# Build and run
+make -f Makefile.new run-server
+
+# Or directly
+go run ./cmd/server --port 2222
+
+# Docker
+docker build -t hecksweeper .
+docker run -p 2222:2222 -v hecksweeper-data:/data hecksweeper
+```
+
+The server auto-generates an SSH host key on first run. Scores persist to a JSON file.
+
+Players are identified by SSH key fingerprint for leaderboards. No account needed -- just `ssh -p 2222 host` and play.
+
+### Server Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--host` | 0.0.0.0 | Listen address |
+| `--port` | 2222 | SSH port |
+| `--key` | .ssh/hecksweeper_ed25519 | Host key path |
+| `--data` | hecksweeper_data.json | Score data file |
+
+## Architecture
+
+```
+cmd/hecksweeper/     Local client entry point
+cmd/server/          SSH server entry point
+internal/game/       Game logic (board, run, power-ups)
+internal/ui/         Bubbletea views and input handling
+internal/server/     Wish SSH server + handler
+internal/daily/      Daily challenge seed generation
+internal/storage/    Persistent score storage
+internal/constants/  Shared constants and glyphs
+```
+
+Game logic is fully separated from UI. The SSH server wraps the same bubbletea model used locally -- each connection gets an isolated game instance.
+
+## Tech Stack
+
+- **Go** + **bubbletea** (TUI framework)
+- **lipgloss** (terminal styling)
+- **Wish** (SSH server, serves bubbletea apps over SSH)
+- Zero CGO, fully static binaries

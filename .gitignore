@@ -1,8 +1,18 @@
 build/
 *.exe
 
-# Go binaries
-hecksweeper
-hecksweeper-*
+# Go binaries (root only, not cmd/ subdirs)
+/hecksweeper
+/hecksweeper-*
+/hecksweeper-server
+
+# SSH host keys
+.ssh/
+
+# Game data
+hecksweeper_data.json
+
+# Cross-compilation output
+dist/
 coverage.out
 coverage.html
