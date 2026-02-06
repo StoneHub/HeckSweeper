@@ -11,5 +11,8 @@ build/
 
 # Game data
 hecksweeper_data.json
+
+# Cross-compilation output
+dist/
 coverage.out
 coverage.html
