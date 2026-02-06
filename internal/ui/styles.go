@@ -6,17 +6,13 @@ import (
 
 var (
 	// Color palette - dark dungeon theme
-	colorBackground = lipgloss.Color("#1a1a1a")
-	colorBorder     = lipgloss.Color("#4a4a4a")
-	colorCursor     = lipgloss.Color("#00ff00")
-	colorHidden     = lipgloss.Color("#3a3a3a")
-	colorRevealed   = lipgloss.Color("#7a7a7a")
-	colorFlag       = lipgloss.Color("#ffaa00")
-	colorMonster    = lipgloss.Color("#ff0000")
-	colorSafe       = lipgloss.Color("#00aa00")
-	colorThreat     = lipgloss.Color("#ffff00")
-	colorTitle      = lipgloss.Color("#00ffff")
-	colorStats      = lipgloss.Color("#aaaaaa")
+	colorBorder   = lipgloss.Color("#4a4a4a")
+	colorHidden   = lipgloss.Color("#3a3a3a")
+	colorRevealed = lipgloss.Color("#7a7a7a")
+	colorFlag     = lipgloss.Color("#ffaa00")
+	colorMonster  = lipgloss.Color("#ff0000")
+	colorTitle    = lipgloss.Color("#00ffff")
+	colorStats    = lipgloss.Color("#aaaaaa")
 
 	// Threat level colors (0-8 monsters nearby)
 	threatColors = []lipgloss.Color{
@@ -48,24 +44,19 @@ var (
 			Width(2).
 			Align(lipgloss.Center)
 
-	hiddenCellStyle = cellStyle.Copy().
+	hiddenCellStyle = cellStyle.
 			Foreground(colorHidden)
 
-	revealedCellStyle = cellStyle.Copy().
+	revealedCellStyle = cellStyle.
 				Foreground(colorRevealed)
 
-	flaggedCellStyle = cellStyle.Copy().
+	flaggedCellStyle = cellStyle.
 				Foreground(colorFlag).
 				Bold(true)
 
-	monsterCellStyle = cellStyle.Copy().
+	monsterCellStyle = cellStyle.
 				Foreground(colorMonster).
 				Bold(true)
-
-	cursorStyle = cellStyle.Copy().
-			Foreground(colorCursor).
-			Bold(true).
-			Background(lipgloss.Color("#003300"))
 
 	borderStyle = lipgloss.NewStyle().
 			Foreground(colorBorder)
@@ -88,6 +79,10 @@ var (
 			Foreground(lipgloss.Color("#666666")).
 			Italic(true).
 			Padding(1, 0)
+
+	menuStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#aaaaaa")).
+			Padding(0, 1)
 )
 
 // GetThreatColor returns the color for a given threat level
@@ -96,9 +91,4 @@ func GetThreatColor(threat int) lipgloss.Color {
 		return colorRevealed
 	}
 	return threatColors[threat]
-}
-
-// StyledCell returns a styled cell based on its state
-func StyledCell(content string, style lipgloss.Style) string {
-	return style.Render(content)
 }

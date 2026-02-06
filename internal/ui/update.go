@@ -3,7 +3,6 @@ package ui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stonehub/hecksweeper/internal/constants"
-	"github.com/stonehub/hecksweeper/internal/game"
 )
 
 // Update handles messages and updates the model (required by bubbletea)
@@ -20,57 +19,116 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Global keys (work in any state)
 	switch msg.String() {
-	case "ctrl+c", "q", "esc":
+	case "ctrl+c":
 		m.quitting = true
 		return m, tea.Quit
 	}
 
-	// Menu state keys
-	if m.game.State == constants.GameStateMenu {
-		switch msg.String() {
-		case "n":
-			// New game
-			m.game = game.NewGame(m.width, m.height, m.seed, m.useUnicode)
-		}
+	switch m.runState {
+	case constants.RunStateTitle:
+		return m.handleTitleKeys(msg)
+	case constants.RunStatePlaying:
+		return m.handlePlayingKeys(msg)
+	case constants.RunStateCleared:
+		return m.handleClearedKeys(msg)
+	case constants.RunStateDead:
+		return m.handleDeadKeys(msg)
+	case constants.RunStateSummary:
+		return m.handleSummaryKeys(msg)
+	}
+
+	return m, nil
+}
+
+// handleTitleKeys handles input on the title screen
+func (m Model) handleTitleKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "n", "enter", " ":
+		m.startNewRun(false)
+	case "q", "esc":
+		m.quitting = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+// handlePlayingKeys handles input during active gameplay
+func (m Model) handlePlayingKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	g := m.run.CurrentGame
+
+	switch msg.String() {
+	case "q", "esc":
+		// Quit to title (abandon run)
+		m.runState = constants.RunStateTitle
 		return m, nil
 	}
 
-	// Game over state keys
-	if m.game.State == constants.GameStateWon || m.game.State == constants.GameStateLost {
-		switch msg.String() {
-		case "r":
-			// Restart game
-			m.game = game.NewGame(m.width, m.height, m.seed, m.useUnicode)
-		case "n":
-			// New game with different seed
-			m.seed++
-			m.game = game.NewGame(m.width, m.height, m.seed, m.useUnicode)
-		}
+	if g.State != constants.GameStatePlaying {
 		return m, nil
 	}
 
-	// Playing state keys
-	if m.game.State == constants.GameStatePlaying {
-		switch msg.String() {
-		// Movement - Arrow keys
-		case "up", "k", "w":
-			m.game.MoveCursor(0, -1)
-		case "down", "j", "s":
-			m.game.MoveCursor(0, 1)
-		case "left", "h", "a":
-			m.game.MoveCursor(-1, 0)
-		case "right", "l", "d":
-			m.game.MoveCursor(1, 0)
+	switch msg.String() {
+	// Movement
+	case "up", "k", "w":
+		g.MoveCursor(0, -1)
+	case "down", "j", "s":
+		g.MoveCursor(0, 1)
+	case "left", "h", "a":
+		g.MoveCursor(-1, 0)
+	case "right", "l", "d":
+		g.MoveCursor(1, 0)
 
-		// Actions
-		case " ", "enter":
-			// Reveal cell
-			m.game.RevealAtCursor()
-		case "f":
-			// Toggle flag
-			m.game.ToggleFlag()
+	// Actions
+	case " ", "enter":
+		g.RevealAtCursor()
+		// Check if floor was cleared or player died
+		if g.State == constants.GameStateWon {
+			m.lastResult = m.run.CompleteFloor()
+			m.runState = constants.RunStateCleared
+		} else if g.State == constants.GameStateLost {
+			m.lastResult = m.run.CompleteFloor()
+			m.runState = constants.RunStateDead
 		}
+	case "f":
+		g.ToggleFlag()
 	}
 
+	return m, nil
+}
+
+// handleClearedKeys handles input on the floor cleared screen
+func (m Model) handleClearedKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter", " ", "n":
+		// Advance to next floor
+		m.run.StartNextFloor()
+		m.runState = constants.RunStatePlaying
+	case "q", "esc":
+		m.runState = constants.RunStateSummary
+	}
+	return m, nil
+}
+
+// handleDeadKeys handles input on the death screen
+func (m Model) handleDeadKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter", " ":
+		m.runState = constants.RunStateSummary
+	case "q", "esc":
+		m.runState = constants.RunStateTitle
+	}
+	return m, nil
+}
+
+// handleSummaryKeys handles input on the run summary screen
+func (m Model) handleSummaryKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "n", "enter", " ":
+		// Start a new run with incremented seed
+		m.seed++
+		m.startNewRun(false)
+	case "q", "esc":
+		m.runState = constants.RunStateTitle
+	}
 	return m, nil
 }

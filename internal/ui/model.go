@@ -8,27 +8,25 @@ import (
 
 // Model represents the UI state for bubbletea
 type Model struct {
-	game       *game.Game
+	run        *game.Run
+	runState   string // Current run state (title, playing, cleared, dead, summary)
+	lastResult game.FloorResult
 	glyphs     constants.GlyphSet
-	width      int
-	height     int
 	seed       int64
 	useUnicode bool
 	quitting   bool
 }
 
-// NewModel creates a new UI model
-func NewModel(width, height int, seed int64, useUnicode bool) Model {
+// NewModel creates a new UI model starting at the title screen
+func NewModel(seed int64, useUnicode bool) Model {
 	glyphs := constants.ASCIIGlyphs
 	if useUnicode {
 		glyphs = constants.UnicodeGlyphs
 	}
 
 	return Model{
-		game:       game.NewGame(width, height, seed, useUnicode),
+		runState:   constants.RunStateTitle,
 		glyphs:     glyphs,
-		width:      width,
-		height:     height,
 		seed:       seed,
 		useUnicode: useUnicode,
 		quitting:   false,
@@ -38,4 +36,11 @@ func NewModel(width, height int, seed int64, useUnicode bool) Model {
 // Init initializes the model (required by bubbletea)
 func (m Model) Init() tea.Cmd {
 	return nil
+}
+
+// startNewRun begins a new roguelite run and starts floor 1
+func (m *Model) startNewRun(isDaily bool) {
+	m.run = game.NewRun(m.seed, m.useUnicode, isDaily)
+	m.run.StartNextFloor()
+	m.runState = constants.RunStatePlaying
 }

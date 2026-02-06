@@ -1,8 +1,8 @@
 build/
 *.exe
 
-# Go binaries
-hecksweeper
-hecksweeper-*
+# Go binaries (root only, not cmd/ subdirs)
+/hecksweeper
+/hecksweeper-*
 coverage.out
 coverage.html
