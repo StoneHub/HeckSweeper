@@ -1,6 +1,8 @@
 package game
 
 import (
+	"sort"
+
 	"github.com/stonehub/hecksweeper/internal/constants"
 )
 
@@ -149,6 +151,23 @@ func (b *Board) RevealAllMonsters() {
 	}
 }
 
+// GetUnrevealedMonsterPositions returns positions of unrevealed monsters,
+// sorted by distance from the given position (for cascade reveal animation)
+func (b *Board) GetUnrevealedMonsterPositions(fromX, fromY int) []Position {
+	positions := []Position{}
+	for idx := range b.Monsters {
+		if !b.Cells[idx].Revealed {
+			positions = append(positions, b.GetPosition(idx))
+		}
+	}
+	sort.Slice(positions, func(i, j int) bool {
+		di := (positions[i].X-fromX)*(positions[i].X-fromX) + (positions[i].Y-fromY)*(positions[i].Y-fromY)
+		dj := (positions[j].X-fromX)*(positions[j].X-fromX) + (positions[j].Y-fromY)*(positions[j].Y-fromY)
+		return di < dj
+	})
+	return positions
+}
+
 // IsWon checks if the game is won (all safe cells revealed)
 func (b *Board) IsWon() bool {
 	return b.RemainingSafe == 0
@@ -207,7 +226,7 @@ func (g *Game) RevealAtCursor() {
 
 	if hitMonster {
 		g.State = constants.GameStateLost
-		g.Board.RevealAllMonsters()
+		// Don't reveal all monsters here — UI handles cascade animation
 	} else if g.Board.IsWon() {
 		g.State = constants.GameStateWon
 	}

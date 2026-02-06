@@ -55,16 +55,29 @@ type FloorResult struct {
 	Score         int
 }
 
+// BoardSnapshot stores a complete game state for Time Warp undo
+type BoardSnapshot struct {
+	Cells         []Cell
+	Monsters      map[int]bool
+	RemainingSafe int
+	CursorPos     Position
+	GameState     string
+	MoveCount     int
+	FlagCount     int
+}
+
 // Run represents a multi-floor roguelite run
 type Run struct {
-	Seed         int64
-	FloorNum     int
-	TotalScore   int
-	PowerUps     []ActivePowerUp
-	CurrentGame  *Game
-	FloorHistory []FloorResult
-	StartedAt    time.Time
-	FloorStarted time.Time
-	IsDaily      bool
-	UseUnicode   bool
+	Seed          int64
+	FloorNum      int
+	TotalScore    int
+	PowerUps      []ActivePowerUp
+	CurrentGame   *Game
+	FloorHistory  []FloorResult
+	StartedAt     time.Time
+	FloorStarted  time.Time
+	IsDaily       bool
+	UseUnicode    bool
+	LastSnapshot  *BoardSnapshot
+	UndoUsedFloor int
 }

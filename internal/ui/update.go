@@ -2,6 +2,7 @@ package ui
 
 import (
 	"math/rand"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stonehub/hecksweeper/internal/constants"
@@ -9,11 +10,31 @@ import (
 	"github.com/stonehub/hecksweeper/internal/game"
 )
 
+// Tick message types for animations
+type deathRevealTickMsg struct{}
+type transitionTickMsg struct{}
+
+func deathRevealTickCmd() tea.Cmd {
+	return tea.Tick(80*time.Millisecond, func(t time.Time) tea.Msg {
+		return deathRevealTickMsg{}
+	})
+}
+
+func transitionTickCmd() tea.Cmd {
+	return tea.Tick(250*time.Millisecond, func(t time.Time) tea.Msg {
+		return transitionTickMsg{}
+	})
+}
+
 // Update handles messages and updates the model (required by bubbletea)
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		return m.handleKeyPress(msg)
+	case deathRevealTickMsg:
+		return m.handleDeathRevealTick()
+	case transitionTickMsg:
+		return m.handleTransitionTick()
 	}
 
 	return m, nil
@@ -37,12 +58,16 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleClearedKeys(msg)
 	case constants.RunStatePowerUp:
 		return m.handlePowerUpKeys(msg)
+	case constants.RunStateDeathReveal:
+		return m.handleDeathRevealKeys(msg)
 	case constants.RunStateDead:
 		return m.handleDeadKeys(msg)
 	case constants.RunStateSummary:
 		return m.handleSummaryKeys(msg)
 	case constants.RunStateLeaderboard:
 		return m.handleLeaderboardKeys(msg)
+	case constants.RunStateTransition:
+		return m.handleTransitionKeys(msg)
 	}
 
 	return m, nil
@@ -90,8 +115,19 @@ func (m Model) handlePlayingKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "right", "l", "d":
 		g.MoveCursor(1, 0)
 
+	// Undo (Time Warp)
+	case "u":
+		if m.run.HasPowerUp(game.PowerUpTimeWarp) && m.run.UndoUsedFloor != m.run.FloorNum && m.run.LastSnapshot != nil {
+			m.run.RestoreSnapshot()
+			m.run.UndoUsedFloor = m.run.FloorNum
+		}
+
 	// Actions
 	case " ", "enter":
+		// Save snapshot for Time Warp undo
+		if m.run.HasPowerUp(game.PowerUpTimeWarp) && m.run.UndoUsedFloor != m.run.FloorNum {
+			m.run.SaveSnapshot()
+		}
 		g.RevealAtCursor()
 		// Check if floor was cleared or player died
 		if g.State == constants.GameStateWon {
@@ -103,14 +139,85 @@ func (m Model) handlePlayingKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				// Death was prevented, continue playing
 			} else {
 				m.lastResult = m.run.CompleteFloor()
-				m.runState = constants.RunStateDead
+				// Start death reveal cascade animation
+				m.deathMonsters = g.Board.GetUnrevealedMonsterPositions(
+					g.CursorPos.X, g.CursorPos.Y,
+				)
+				m.deathRevealIdx = 0
+				m.runState = constants.RunStateDeathReveal
 				m.submitScore()
+				return m, deathRevealTickCmd()
 			}
 		}
 	case "f":
 		g.ToggleFlag()
 	}
 
+	return m, nil
+}
+
+// handleDeathRevealTick advances the mine cascade animation by one step
+func (m Model) handleDeathRevealTick() (tea.Model, tea.Cmd) {
+	if m.runState != constants.RunStateDeathReveal {
+		return m, nil
+	}
+	if m.deathRevealIdx < len(m.deathMonsters) {
+		pos := m.deathMonsters[m.deathRevealIdx]
+		cell := m.run.CurrentGame.Board.GetCell(pos.X, pos.Y)
+		if cell != nil {
+			cell.Revealed = true
+		}
+		m.deathRevealIdx++
+		if m.deathRevealIdx < len(m.deathMonsters) {
+			return m, deathRevealTickCmd()
+		}
+	}
+	// All revealed — wait for key press
+	return m, nil
+}
+
+// handleDeathRevealKeys handles input during the death cascade animation
+func (m Model) handleDeathRevealKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.deathRevealIdx < len(m.deathMonsters) {
+		// Still animating — skip to end
+		g := m.run.CurrentGame
+		for i := m.deathRevealIdx; i < len(m.deathMonsters); i++ {
+			pos := m.deathMonsters[i]
+			cell := g.Board.GetCell(pos.X, pos.Y)
+			if cell != nil {
+				cell.Revealed = true
+			}
+		}
+		m.deathRevealIdx = len(m.deathMonsters)
+		return m, nil
+	}
+
+	// Animation done
+	switch msg.String() {
+	case "enter", " ":
+		m.runState = constants.RunStateDead
+	case "q", "esc":
+		m.runState = constants.RunStateTitle
+	}
+	return m, nil
+}
+
+// handleTransitionTick advances the floor transition animation
+func (m Model) handleTransitionTick() (tea.Model, tea.Cmd) {
+	if m.runState != constants.RunStateTransition {
+		return m, nil
+	}
+	m.transitionTicks++
+	if m.transitionTicks >= 6 {
+		m.runState = constants.RunStatePlaying
+		return m, nil
+	}
+	return m, transitionTickCmd()
+}
+
+// handleTransitionKeys allows skipping the transition animation
+func (m Model) handleTransitionKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	m.runState = constants.RunStatePlaying
 	return m, nil
 }
 
@@ -141,17 +248,17 @@ func (m Model) handlePowerUpKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "1":
 		if len(m.powerUpChoices) >= 1 {
 			m.run.AddPowerUp(m.powerUpChoices[0])
-			m.advanceToNextFloor()
+			return m, m.advanceToNextFloor()
 		}
 	case "2":
 		if len(m.powerUpChoices) >= 2 {
 			m.run.AddPowerUp(m.powerUpChoices[1])
-			m.advanceToNextFloor()
+			return m, m.advanceToNextFloor()
 		}
 	case "3":
 		if len(m.powerUpChoices) >= 3 {
 			m.run.AddPowerUp(m.powerUpChoices[2])
-			m.advanceToNextFloor()
+			return m, m.advanceToNextFloor()
 		}
 	case "q", "esc":
 		m.submitScore()
@@ -160,11 +267,13 @@ func (m Model) handlePowerUpKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// advanceToNextFloor starts the next floor after power-up selection
-func (m *Model) advanceToNextFloor() {
+// advanceToNextFloor starts the next floor with a transition animation
+func (m *Model) advanceToNextFloor() tea.Cmd {
 	m.run.StartNextFloor()
 	m.powerUpChoices = nil
-	m.runState = constants.RunStatePlaying
+	m.transitionTicks = 0
+	m.runState = constants.RunStateTransition
+	return transitionTickCmd()
 }
 
 // handleDeadKeys handles input on the death screen

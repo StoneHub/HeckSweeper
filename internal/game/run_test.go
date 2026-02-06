@@ -6,37 +6,92 @@ import (
 )
 
 func TestGetFloorConfig(t *testing.T) {
-	// Floor 1 should be the smallest/easiest
+	// Floor 1 should be the tutorial floor (smallest/easiest)
 	cfg1 := GetFloorConfig(1)
-	if cfg1.Width != 12 || cfg1.Height != 8 {
-		t.Errorf("Floor 1: expected 12x8, got %dx%d", cfg1.Width, cfg1.Height)
+	if cfg1.Width != 8 || cfg1.Height != 6 {
+		t.Errorf("Floor 1: expected 8x6, got %dx%d", cfg1.Width, cfg1.Height)
 	}
-	if cfg1.MonsterDensity != 0.12 {
-		t.Errorf("Floor 1: expected density 0.12, got %f", cfg1.MonsterDensity)
-	}
-
-	// Floor 6 should be the last predefined
-	cfg6 := GetFloorConfig(6)
-	if cfg6.Width != 24 || cfg6.Height != 16 {
-		t.Errorf("Floor 6: expected 24x16, got %dx%d", cfg6.Width, cfg6.Height)
-	}
-	if cfg6.MonsterDensity != 0.22 {
-		t.Errorf("Floor 6: expected density 0.22, got %f", cfg6.MonsterDensity)
+	if cfg1.MonsterDensity != 0.10 {
+		t.Errorf("Floor 1: expected density 0.10, got %f", cfg1.MonsterDensity)
 	}
 
-	// Floor 7+ should scale beyond predefined
+	// Floor 7 should be the last predefined
 	cfg7 := GetFloorConfig(7)
 	if cfg7.Width != 24 || cfg7.Height != 16 {
 		t.Errorf("Floor 7: expected 24x16, got %dx%d", cfg7.Width, cfg7.Height)
 	}
-	if cfg7.MonsterDensity != 0.23 {
-		t.Errorf("Floor 7: expected density 0.23, got %f", cfg7.MonsterDensity)
+	if cfg7.MonsterDensity != 0.22 {
+		t.Errorf("Floor 7: expected density 0.22, got %f", cfg7.MonsterDensity)
+	}
+
+	// Floor 8+ should scale beyond predefined
+	cfg8 := GetFloorConfig(8)
+	if cfg8.Width != 24 || cfg8.Height != 16 {
+		t.Errorf("Floor 8: expected 24x16, got %dx%d", cfg8.Width, cfg8.Height)
+	}
+	if cfg8.MonsterDensity != 0.23 {
+		t.Errorf("Floor 8: expected density 0.23, got %f", cfg8.MonsterDensity)
 	}
 
 	// Floor 0 and negative should default to floor 1
 	cfgZero := GetFloorConfig(0)
 	if cfgZero.Width != cfg1.Width {
 		t.Errorf("Floor 0 should default to floor 1 config")
+	}
+}
+
+func TestSaveAndRestoreSnapshot(t *testing.T) {
+	run := NewRun(42, true, false)
+	run.StartNextFloor()
+
+	g := run.CurrentGame
+	originalRemaining := g.Board.RemainingSafe
+	originalCursor := g.CursorPos
+	originalMoveCount := g.MoveCount
+
+	// Save snapshot
+	run.SaveSnapshot()
+
+	// Modify game state
+	g.CursorPos = Position{X: 0, Y: 0}
+	g.Board.RemainingSafe = 0
+	g.MoveCount = 99
+
+	// Restore
+	run.RestoreSnapshot()
+
+	if g.Board.RemainingSafe != originalRemaining {
+		t.Errorf("RemainingSafe should be restored: got %d, want %d", g.Board.RemainingSafe, originalRemaining)
+	}
+	if g.CursorPos != originalCursor {
+		t.Errorf("CursorPos should be restored")
+	}
+	if g.MoveCount != originalMoveCount {
+		t.Errorf("MoveCount should be restored to %d, got %d", originalMoveCount, g.MoveCount)
+	}
+	if run.LastSnapshot != nil {
+		t.Error("LastSnapshot should be nil after restore")
+	}
+}
+
+func TestGetUnrevealedMonsterPositions(t *testing.T) {
+	run := NewRun(42, true, false)
+	run.StartNextFloor()
+
+	g := run.CurrentGame
+	totalMonsters := len(g.Board.Monsters)
+
+	// Before any reveals, all monsters should be unrevealed
+	positions := g.Board.GetUnrevealedMonsterPositions(0, 0)
+	if len(positions) != totalMonsters {
+		t.Errorf("Expected %d unrevealed monsters, got %d", totalMonsters, len(positions))
+	}
+
+	// Reveal all monsters
+	g.Board.RevealAllMonsters()
+	positions = g.Board.GetUnrevealedMonsterPositions(0, 0)
+	if len(positions) != 0 {
+		t.Errorf("Expected 0 unrevealed monsters after reveal, got %d", len(positions))
 	}
 }
 

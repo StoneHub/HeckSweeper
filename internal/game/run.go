@@ -9,12 +9,13 @@ import (
 
 // Floor scaling tables
 var floorConfigs = []FloorConfig{
-	{Width: 12, Height: 8, MonsterDensity: 0.12, FloorNumber: 1},
-	{Width: 16, Height: 10, MonsterDensity: 0.14, FloorNumber: 2},
-	{Width: 18, Height: 12, MonsterDensity: 0.16, FloorNumber: 3},
-	{Width: 20, Height: 14, MonsterDensity: 0.18, FloorNumber: 4},
-	{Width: 22, Height: 14, MonsterDensity: 0.20, FloorNumber: 5},
-	{Width: 24, Height: 16, MonsterDensity: 0.22, FloorNumber: 6},
+	{Width: 8, Height: 6, MonsterDensity: 0.10, FloorNumber: 1},
+	{Width: 12, Height: 8, MonsterDensity: 0.12, FloorNumber: 2},
+	{Width: 16, Height: 10, MonsterDensity: 0.14, FloorNumber: 3},
+	{Width: 18, Height: 12, MonsterDensity: 0.16, FloorNumber: 4},
+	{Width: 20, Height: 14, MonsterDensity: 0.18, FloorNumber: 5},
+	{Width: 22, Height: 14, MonsterDensity: 0.20, FloorNumber: 6},
+	{Width: 24, Height: 16, MonsterDensity: 0.22, FloorNumber: 7},
 }
 
 // GetFloorConfig returns the configuration for a given floor number.
@@ -162,4 +163,44 @@ func (r *Run) IsActive() bool {
 		return true
 	}
 	return r.CurrentGame.State != constants.GameStateLost
+}
+
+// SaveSnapshot saves the current board state for Time Warp undo
+func (r *Run) SaveSnapshot() {
+	g := r.CurrentGame
+	if g == nil {
+		return
+	}
+	cellsCopy := make([]Cell, len(g.Board.Cells))
+	copy(cellsCopy, g.Board.Cells)
+	monstersCopy := make(map[int]bool, len(g.Board.Monsters))
+	for k, v := range g.Board.Monsters {
+		monstersCopy[k] = v
+	}
+	r.LastSnapshot = &BoardSnapshot{
+		Cells:         cellsCopy,
+		Monsters:      monstersCopy,
+		RemainingSafe: g.Board.RemainingSafe,
+		CursorPos:     g.CursorPos,
+		GameState:     g.State,
+		MoveCount:     g.MoveCount,
+		FlagCount:     g.FlagCount,
+	}
+}
+
+// RestoreSnapshot restores the board to the saved snapshot state
+func (r *Run) RestoreSnapshot() {
+	if r.LastSnapshot == nil || r.CurrentGame == nil {
+		return
+	}
+	snap := r.LastSnapshot
+	g := r.CurrentGame
+	g.Board.Cells = snap.Cells
+	g.Board.Monsters = snap.Monsters
+	g.Board.RemainingSafe = snap.RemainingSafe
+	g.CursorPos = snap.CursorPos
+	g.State = snap.GameState
+	g.MoveCount = snap.MoveCount
+	g.FlagCount = snap.FlagCount
+	r.LastSnapshot = nil
 }

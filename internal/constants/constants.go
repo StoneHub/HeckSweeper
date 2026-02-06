@@ -22,9 +22,11 @@ const (
 	RunStatePlaying = "run_playing" // Active floor
 	RunStateCleared = "run_cleared" // Floor cleared, showing stats
 	RunStatePowerUp = "run_powerup" // Choosing a power-up
-	RunStateDead    = "run_dead"    // Hit a monster, run over
-	RunStateSummary     = "run_summary"     // Final run stats
-	RunStateLeaderboard = "run_leaderboard" // Viewing leaderboard
+	RunStateDeathReveal = "run_death_reveal" // Animating mine reveal cascade
+	RunStateDead        = "run_dead"         // Hit a monster, run over
+	RunStateSummary     = "run_summary"      // Final run stats
+	RunStateLeaderboard = "run_leaderboard"  // Viewing leaderboard
+	RunStateTransition  = "run_transition"   // Floor transition animation
 )
 
 // Glyphs for rendering

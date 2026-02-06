@@ -193,6 +193,67 @@ func TestLuckyCharmReducesDensity(t *testing.T) {
 	}
 }
 
+func TestHandleDeathPowerUpsTimeWarp(t *testing.T) {
+	run := NewRun(42, true, false)
+	run.StartNextFloor()
+	run.AddPowerUp(PowerUpDef{ID: PowerUpTimeWarp, Name: "Time Warp", Rarity: Rare})
+
+	// Save snapshot before "reveal"
+	run.SaveSnapshot()
+
+	// Simulate death
+	g := run.CurrentGame
+	g.State = "lost"
+
+	prevented := HandleDeathPowerUps(run)
+	if !prevented {
+		t.Error("Time Warp should prevent death")
+	}
+	if g.State != "playing" {
+		t.Errorf("Game state should be playing after Time Warp, got %s", g.State)
+	}
+
+	// Time Warp should NOT be consumed permanently (it recharges)
+	if run.PowerUps[0].Consumed {
+		t.Error("Time Warp should not be consumed permanently")
+	}
+
+	// But it should be used for this floor
+	if run.UndoUsedFloor != run.FloorNum {
+		t.Error("UndoUsedFloor should be set to current floor")
+	}
+
+	// Second death on same floor should not be prevented by Time Warp
+	run.SaveSnapshot()
+	g.State = "lost"
+	prevented = HandleDeathPowerUps(run)
+	if prevented {
+		t.Error("Time Warp should not prevent death twice on same floor")
+	}
+}
+
+func TestTimeWarpPrioritizedOverShield(t *testing.T) {
+	run := NewRun(42, true, false)
+	run.StartNextFloor()
+	run.AddPowerUp(PowerUpDef{ID: PowerUpShield, Name: "Shield", Rarity: Rare})
+	run.AddPowerUp(PowerUpDef{ID: PowerUpTimeWarp, Name: "Time Warp", Rarity: Rare})
+
+	// Save snapshot
+	run.SaveSnapshot()
+
+	// Simulate death
+	run.CurrentGame.State = "lost"
+	HandleDeathPowerUps(run)
+
+	// Time Warp should be used first (renewable), Shield should be untouched
+	if run.PowerUps[0].Consumed {
+		t.Error("Shield should not be consumed when Time Warp is available")
+	}
+	if run.UndoUsedFloor != run.FloorNum {
+		t.Error("Time Warp should have been used")
+	}
+}
+
 func TestRarityName(t *testing.T) {
 	tests := []struct {
 		r    Rarity
